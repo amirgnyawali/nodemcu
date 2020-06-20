@@ -4,12 +4,10 @@ except:
     import socket
 
 response_404 = """HTTP/1.0 404 NOT FOUND
-
 <h1>404 Not Found</h1>
 """
 
 response_500 = """HTTP/1.0 500 INTERNAL SERVER ERROR
-
 <h1>500 Internal Server Error</h1>
 """
 
@@ -17,17 +15,15 @@ response_template = """HTTP/1.0 200 OK
 
 %s
 """
-
 import machine
 import ntptime, utime
-from machine import RTC
+from machine import RTC, Pin, ADC
 from time import sleep
 
-try:
-    seconds = ntptime.time()
-except:
-    seconds = 0
-
+adc = machine.ADC(0)
+pin = Pin(16, Pin.OUT)
+switch_pin = Pin(10, Pin.IN)
+seconds = ntptime.time()
 rtc = RTC()
 rtc.datetime(utime.localtime(seconds))
 
@@ -42,16 +38,36 @@ def time():
 
     return response_template % body
 
+def light_on():
+     pin.value(0)
+     body = "You turned a light on!"
+     return response_template % body
+
+def light_off():
+     pin.value(1)
+     body = "You turned a light off!"
+     return response_template % body
+
+def light():
+     body = "{value: " + str(adc.read()) + "}"
+     return response_template % body
+
+def switch():
+     body = "{state: " + str(switch_pin.value()) + "}"
+     return response_template % body
+
 def dummy():
     body = "This is a dummy endpoint"
 
     return response_template % body
 
-pin = machine.Pin(10, machine.Pin.IN)
-
 handlers = {
     'time': time,
     'dummy': dummy,
+    'light_on': light_on,
+    'light_off': light_off,
+    'switch': switch,
+    'light': light,
 }
 
 def main():
@@ -63,7 +79,7 @@ def main():
 
     s.bind(addr)
     s.listen(5)
-    print("Listening, connect your browser to http://<this_host>:8080")
+    print("Listening, connect your browser to http://<this_host>:8080/")
 
     while True:
         res = s.accept()
